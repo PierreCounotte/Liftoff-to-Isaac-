@@ -16,6 +16,8 @@ simulation_app = app_launcher.app
 import torch
 import pandas as pd
 import numpy as np
+from scipy.spatial.transform import Rotation as R
+import math
 
 import isaacsim.core.utils.prims as prim_utils
 
@@ -71,6 +73,64 @@ def LiftoffToIsaacCoordinates(df):
     df.loc[:, 'position_z'] = df['position_y']
     df.loc[:, 'position_y'] = -x_unity
 
+    vx_unity = df['velocity_x'].copy()
+    df.loc[:, 'velocity_x'] = df['velocity_z']
+    df.loc[:, 'velocity_z'] = df['velocity_y']
+    df.loc[:, 'velocity_y'] = -vx_unity
+
+
+
+
+    
+    # Unity format: (x, y, z, w)
+    quat_unity = df[['quaternion_x', 'quaternion_y', 'quaternion_z', 'quaternion_w']].values  # shape = (N, 4)
+
+    # Étape 1 : Conversion en rotation
+    r_unity = R.from_quat(quat_unity)
+
+    # Étape 2 : Conversion en angles d’Euler (en radians)
+    euler_rad = r_unity.as_euler('yxz', degrees=False)  # shape = (N, 3)
+
+    # Étape 3 : Conversion en degrés
+    euler_deg = np.degrees(euler_rad)  # shape = (N, 3)
+
+    # Étape 4 : Inversion d’axes (si nécessaire dans ta logique)
+    euler_deg[:, 0] *= -1  # drone_euler_x
+    euler_deg[:, 1] *= -1  # drone_euler_y
+    euler_deg[:, 2] *= -1  # drone_euler_z
+
+    # Étape 5 : Reconversion en quaternion
+    # Recrée une rotation avec les angles modifiés
+    r_adjusted = R.from_euler('y', 90, degrees=True) *  r_unity
+
+    # Étape 6 : Mise à jour dans le DataFrame (x, y, z, w)
+    quat_adjusted = r_adjusted.as_quat()  # shape = (N, 4)
+    df['quaternion_x'] = quat_adjusted[:, 1]
+    df['quaternion_y'] = quat_adjusted[:, 2]
+    df['quaternion_z'] = quat_adjusted[:, 3]
+    df['quaternion_w'] = quat_adjusted[:, 0]
+
+
+
+
+  
+
+        
+    #quat_unity = df[['quaternion_x', 'quaternion_y', 'quaternion_z', 'quaternion_w']].values
+    #r_unity = R.from_quat(quat_unity)  
+
+    #change_basis = R.from_matrix(np.array([
+        #[ 0,  0,  1],   # X_isaac ← Z_unity
+        #[-1,  0,  0],   # Y_isaac ← -X_unity
+        #[ 0,  1,  0]    # Z_isaac ← Y_unity
+    #]))
+        
+    #r_isaac = change_basis * r_unity
+    #quat_isaac = r_isaac.as_quat()
+        
+    #df.loc[:, ['quaternion_x', 'quaternion_y', 'quaternion_z', 'quaternion_w']] = quat_isaac
+
+
 def run_simulator(sim: sim_utils.SimulationContext, entities: dict[str, RigidObject]):
     """Runs the simulation loop."""
     # Extract scene entities
@@ -99,9 +159,14 @@ def run_simulator(sim: sim_utils.SimulationContext, entities: dict[str, RigidObj
             y_pos = df['position_y'].iloc[count]-np.mean(df['position_y'].values)
             z_pos = df['position_z'].iloc[count]
 
+            qx = df['quaternion_x'].iloc[count]
+            qy = df['quaternion_y'].iloc[count]
+            qz = df['quaternion_z'].iloc[count]
+            qw = df['quaternion_w'].iloc[count]
+
             root_state = cube_object.data.default_root_state.clone()
-            offset = torch.tensor([x_pos, y_pos, z_pos], device=root_state.device)
-            root_state[:, :3] = offset  
+            root_state[:, :3] = torch.tensor([x_pos, y_pos, z_pos], device=root_state.device)
+            root_state[:, 3:7] = torch.tensor([qx, qy, qz, qw], device=root_state.device) 
             cube_object.write_root_pose_to_sim(root_state[:, :7])
             cube_object.write_root_velocity_to_sim(root_state[:, 7:])
 
