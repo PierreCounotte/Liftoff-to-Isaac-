@@ -36,10 +36,7 @@ import isaacsim.core.utils.prims as prim_utils
 import isaaclab.sim as sim_utils
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
-
-CSV_PATH = "Big_trajectory_corrected.csv"  # ← à modifier
-CUBE_PRIM_PATH = "/World/Objects/Cube"
-FPS = 100  # fréquence d'échantillonnage du CSV (ex: 100 Hz → 0.01s entre lignes)
+sampling_frequency = 100 # Hz
 
 
 def design_scene():
@@ -53,25 +50,29 @@ def design_scene():
         intensity=3000.0,
         color=(0.75, 0.75, 0.75),
     )
-    cfg_light_distant.func(CUBE_PRIM_PATH, cfg_light_distant, translation=(1, 0, 10))
+    cfg_light_distant.func("/World/lightDistant", cfg_light_distant, translation=(1, 0, 10))
 
+    # create a new xform prim for all objects to be spawned under
+    prim_utils.create_prim("/World/Objects", "Xform")
     
-
     # spawn a blue cuboid with deformable body
     cfg_cuboid = sim_utils.MeshCuboidCfg(
     size=(0.2, 0.2, 0.2),
-    rigid_props=sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=True),                
-    collision_props=sim_utils.CollisionPropertiesCfg(),            
+    rigid_props=sim_utils.RigidBodyPropertiesCfg(
+        disable_gravity=True  # << désactive la gravité
+    ),
+    collision_props=sim_utils.CollisionPropertiesCfg(),  # nécessaire pour un corps rigide
     visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.0, 1.0)),
 )
-    cfg_cuboid.func("/World/Objects/CuboidRigid", cfg_cuboid, translation=(0.15, 0.0, 2.0))
+    cfg_cuboid.func("/World/Objects/CuboidRigid", cfg_cuboid, translation=(0.0, 0.0, 0.1))
 
+    
 
 def main():
     """Main function."""
 
     # Initialize the simulation context
-    sim_cfg = sim_utils.SimulationCfg(dt=0.01, device=args_cli.device)
+    sim_cfg = sim_utils.SimulationCfg(dt=1/sampling_frequency, device=args_cli.device)
     sim = sim_utils.SimulationContext(sim_cfg)
     # Set main camera
     sim.set_camera_view([2.0, 0.0, 2.5], [-0.5, 0.0, 0.5])
