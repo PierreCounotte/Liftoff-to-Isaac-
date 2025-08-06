@@ -22,7 +22,7 @@ trajectory_df = pd.DataFrame(columns=
     'left_front_rpm', 'right_front_rpm', 'left_back_rpm', 'right_back_rpm'
 ])
 
-def toggle_recording_keypress():
+def toggle_recording_keypress(output_path):
     global recording, terminate, filename
     print("Press 'enter' to start / end recording.")
     while True:
@@ -30,7 +30,7 @@ def toggle_recording_keypress():
         with lock:
             recording = not recording
             if recording:
-                filename = f"Big_trajectory_corrected.csv"
+                filename = output_path
                 print(f"Recording started -> {filename}")
             else:
                 print("Recording ended")
@@ -111,7 +111,7 @@ def split_csv_with_chunks(csv_path, chunk_size=1000, output_path=None):
     combined_df = pd.concat(chunks, ignore_index=True)
 
     if output_path is None:
-        output_path = "Chunked_trajectory_corrected.csv"
+        output_path = "Chunked_" + csv_path
 
     combined_df.to_csv(output_path, index=False)
     print(f"Output file : {output_path}")
@@ -122,12 +122,13 @@ def split_csv_with_chunks(csv_path, chunk_size=1000, output_path=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run drone telemetry trajectory")
     parser.add_argument("--drone_id", default="1", help="Type of drone : 1 = DJI FPV Drone, 2 = Luma 5, 3 = ...")
+    parser.add_argument("--output_file", default="Liftoff_trajectory.csv", help="Output file name for the trajectory data.")
     parser.add_argument("--chunks", default="0", choices=["0","1"], help="1 for a chunked csv")
     args = parser.parse_args()
     port = 9001
 
     thread_listener = threading.Thread(target=listen_trajectory, args=(port,args.drone_id))
-    thread_toggle = threading.Thread(target=toggle_recording_keypress)
+    thread_toggle = threading.Thread(target=toggle_recording_keypress, args=(args.output_file,))
 
     thread_listener.start()
     thread_toggle.start()

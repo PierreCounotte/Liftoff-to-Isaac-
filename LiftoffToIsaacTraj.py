@@ -81,7 +81,6 @@ def design_scene():
     return scene_entities
 
 
-    cfg_cuboid.func("/World/Objects/CuboidRigid", cfg_cuboid, translation=(0.0, 0.0, 0.1))
 
 def LiftoffToIsaacCoordinates(df):
     x_unity = df['position_x'].copy()
@@ -198,6 +197,7 @@ def run_simulator(sim: sim_utils.SimulationContext, entities: dict[str, RigidObj
 def live_csv_reader(file_path, start_row=0, sleep_time=0.1, timeout=10.0):
     last_row_read = start_row
     waited_time = 0.0
+    print(f"[INFO] Starting to read from {file_path}...")
 
     while True:
         try:
