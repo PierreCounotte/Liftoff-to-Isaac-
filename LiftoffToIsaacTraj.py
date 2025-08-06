@@ -2,9 +2,11 @@ import argparse
 from isaaclab.app import AppLauncher
 
 # create argparser
-parser = argparse.ArgumentParser(description="Tutorial on spawning prims into the scene.")
+parser = argparse.ArgumentParser(description="Run drone trajectory in Isaac Lab.")
 # append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
+# add custom argument
+parser.add_argument("--input_file", default="test.csv", help="CSV file containing the trajectory data")
 # parse the arguments
 args_cli = parser.parse_args()
 # launch omniverse app
@@ -17,14 +19,16 @@ import torch
 import pandas as pd
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-import math
+import os
+import time
 
 import isaacsim.core.utils.prims as prim_utils
 
 import isaaclab.sim as sim_utils
 import isaaclab.utils.math as math_utils
 from isaaclab.assets import RigidObject, RigidObjectCfg
-from isaaclab.sim import SimulationContext
+from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
+from isaaclab.assets import Articulation, ArticulationCfg
 
 sampling_frequency = 100 # Hz
 
@@ -46,22 +50,34 @@ def design_scene():
     prim_utils.create_prim("/World/Objects", "Xform")
     
 
-    # Rigid Object
+    drone_cfg = ArticulationCfg(
+        prim_path="/World/Objects/Drone",
+        spawn=sim_utils.UsdFileCfg(
+            usd_path=f"{ISAAC_NUCLEUS_DIR}/Robots/Crazyflie/cf2x.usd",
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(disable_gravity=True),
+        ),
+        init_state=ArticulationCfg.InitialStateCfg(),
+        actuators={},  # <--- ajoute cette ligne pour éviter l'erreur
+    )
+
     cube_cfg = RigidObjectCfg(
-        prim_path="/World/Objects/CuboidRigid",
-        spawn=sim_utils.MeshCuboidCfg(
-            size=(2, 2, 2),
+        prim_path="/World/Objects/GhostCube",
+        spawn=sim_utils.CuboidCfg(  # Cube généré à la volée
+            size=(2, 2, 2),  # Ajuste selon ton drone
             rigid_props=sim_utils.RigidBodyPropertiesCfg(disable_gravity=True),
             mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
             collision_props=sim_utils.CollisionPropertiesCfg(),
-            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 1.0, 0.0), metallic=0.2),
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.2, 0.8, 1.0), metallic=0.2, opacity=1.0),
         ),
-        init_state=RigidObjectCfg.InitialStateCfg(),
+        init_state=RigidObjectCfg.InitialStateCfg()
     )
+
+
+    drone_object = Articulation(cfg=drone_cfg)
     cube_object = RigidObject(cfg=cube_cfg)
 
     # return the scene information
-    scene_entities = {"cube": cube_object}
+    scene_entities = {"cube": cube_object, "drone": drone_object}
     return scene_entities
 
 
@@ -88,120 +104,133 @@ def LiftoffToIsaacCoordinates(df):
     # Étape 1 : Conversion en rotation
     r_unity = R.from_quat(quat_unity)
 
-    # Étape 2 : Conversion en angles d’Euler (en radians)
-    euler_rad = r_unity.as_euler('yxz', degrees=False)  # shape = (N, 3)
+    P = np.array([
+        [1, 0, 0],
+        [0, 0, 1],
+        [0, 1, 0]
+    ])
 
-    # Étape 3 : Conversion en degrés
-    euler_deg = np.degrees(euler_rad)  # shape = (N, 3)
+    # Appliquer ce changement à toutes les quaternions
+    # Soit R la rotation dans l’ancien repère.
+    # Dans le nouveau repère, la rotation est : R' = P⁻¹ * R * P = P.T * R * P
+    rot_mats = r_unity.as_matrix()            # (N, 3, 3)
+    rot_mats_permuted = P.T @ rot_mats @ P    # changement de base
+    r_permuted = R.from_matrix(rot_mats_permuted)
 
-    # Étape 4 : Inversion d’axes (si nécessaire dans ta logique)
-    euler_deg[:, 0] *= -1  # drone_euler_x
-    euler_deg[:, 1] *= -1  # drone_euler_y
-    euler_deg[:, 2] *= -1  # drone_euler_z
+    # Étape 4 : Appliquer rotation de +90° autour du **nouvel axe Z**
+    r_z_90 = R.from_euler('z', 90, degrees=True)   # dans le nouveau repère
+    r_adjusted = r_z_90 * r_permuted
 
-    # Étape 5 : Reconversion en quaternion
-    # Recrée une rotation avec les angles modifiés
-    r_adjusted = R.from_euler('y', 90, degrees=True) *  r_unity
 
-    # Étape 6 : Mise à jour dans le DataFrame (x, y, z, w)
+
+    # Étape 5 : Mise à jour dans le DataFrame (x, y, z, w)
     quat_adjusted = r_adjusted.as_quat()  # shape = (N, 4)
-    df['quaternion_x'] = quat_adjusted[:, 1]
-    df['quaternion_y'] = quat_adjusted[:, 2]
-    df['quaternion_z'] = quat_adjusted[:, 3]
-    df['quaternion_w'] = quat_adjusted[:, 0]
+    df.loc[:, 'quaternion_x'] = quat_adjusted[:, 0]
+    df.loc[:, 'quaternion_y'] = quat_adjusted[:, 1]
+    df.loc[:, 'quaternion_z'] = quat_adjusted[:, 2]
+    df.loc[:, 'quaternion_w'] = quat_adjusted[:, 3]
 
 
 
 
-  
-
-        
-    #quat_unity = df[['quaternion_x', 'quaternion_y', 'quaternion_z', 'quaternion_w']].values
-    #r_unity = R.from_quat(quat_unity)  
-
-    #change_basis = R.from_matrix(np.array([
-        #[ 0,  0,  1],   # X_isaac ← Z_unity
-        #[-1,  0,  0],   # Y_isaac ← -X_unity
-        #[ 0,  1,  0]    # Z_isaac ← Y_unity
-    #]))
-        
-    #r_isaac = change_basis * r_unity
-    #quat_isaac = r_isaac.as_quat()
-        
-    #df.loc[:, ['quaternion_x', 'quaternion_y', 'quaternion_z', 'quaternion_w']] = quat_isaac
-
-
-def run_simulator(sim: sim_utils.SimulationContext, entities: dict[str, RigidObject]):
-    """Runs the simulation loop."""
-    # Extract scene entities
-    # note: we only do this here for readability. In general, it is better to access the entities directly from
-    #   the dictionary. This dictionary is replaced by the InteractiveScene class in the next tutorial.
-    cube_object = entities["cube"]
-    # Define simulation stepping
+def run_simulator(sim: sim_utils.SimulationContext, entities: dict[str, RigidObject], csv_path: str):
+    cube_object, drone_object = entities["cube"], entities["drone"]
     sim_dt = sim.get_physics_dt()
+
+    if not os.path.exists(csv_path):
+        print(f"{csv_path} does not exist.")
+        return
+    row_stream = live_csv_reader(csv_path)
+
     sim_time = 0.0
     count = 0
-    
-    csv_path = "Big_trajectory_corrected.csv"
-    df = pd.read_csv(csv_path)
-    LiftoffToIsaacCoordinates(df)
-
-    max_count = len(df)
-
-
-    
 
     while simulation_app.is_running():
-        if count < max_count:
-                
+        try:
+            row = next(row_stream)
+        except StopIteration:
+            print("[INFO] Data flux end.")
+            return
 
-            x_pos = df['position_x'].iloc[count]-np.mean(df['position_x'].values)
-            y_pos = df['position_y'].iloc[count]-np.mean(df['position_y'].values)
-            z_pos = df['position_z'].iloc[count]
+        # Lecture et transformation des données
+        x_pos = row['position_x']-950
+        y_pos = row['position_y']+1000
+        z_pos = row['position_z']
+        qx = row['quaternion_x']
+        qy = row['quaternion_y']
+        qz = row['quaternion_z']
+        qw = row['quaternion_w']
 
-            qx = df['quaternion_x'].iloc[count]
-            qy = df['quaternion_y'].iloc[count]
-            qz = df['quaternion_z'].iloc[count]
-            qw = df['quaternion_w'].iloc[count]
+        root_state = cube_object.data.default_root_state.clone()
+        root_state[:, :3] = torch.tensor([x_pos, y_pos, z_pos], device=root_state.device)
+        root_state[:, 3:7] = torch.tensor([qx, qy, qz, qw], device=root_state.device)
 
-            root_state = cube_object.data.default_root_state.clone()
-            root_state[:, :3] = torch.tensor([x_pos, y_pos, z_pos], device=root_state.device)
-            root_state[:, 3:7] = torch.tensor([qx, qy, qz, qw], device=root_state.device) 
-            cube_object.write_root_pose_to_sim(root_state[:, :7])
-            cube_object.write_root_velocity_to_sim(root_state[:, 7:])
+        # Mise à jour du drone et du cube
+        cube_object.write_root_pose_to_sim(root_state[:, :7])
+        cube_object.write_root_velocity_to_sim(root_state[:, 7:])
+        drone_object.write_root_pose_to_sim(root_state[:, :7])
+        drone_object.write_root_velocity_to_sim(root_state[:, 7:])
 
-            cube_object.reset()
-            cube_object.write_data_to_sim()
+        cube_object.reset()
+        drone_object.reset()
+        cube_object.write_data_to_sim()
+        drone_object.write_data_to_sim()
+        sim.step()
 
-            sim.step()
-            cube_object.update(sim.get_physics_dt())
+        cube_object.update(sim_dt)
+        drone_object.update(sim_dt)
 
-            if count % 50 == 0:
-                print(f"Timestamp : {sim_time:.2f} s, Root position (in world): {cube_object.data.root_pos_w}")
+        if count % 50 == 0:
+            print(f"Timestamp : {sim_time:.2f} s, Root position (in world): {cube_object.data.root_pos_w}")
             
-            if count % 1000 == 0 and count != 0:
-                print(f"[INFO] --- Resetting sim_time at count = {count} ---")
-                sim_time = 0.0
-                print(f"Timestamp : {sim_time:.2f} s, Root position (in world): {cube_object.data.root_pos_w}")
+        if count % 1000 == 0 and count != 0:
+            print(f"[INFO] --- Resetting sim_time at count = {count} ---")
+            sim_time = 0.0
+            print(f"Timestamp : {sim_time:.2f} s, Root position (in world): {cube_object.data.root_pos_w}")
+        count += 1
 
-            sim_time += sim_dt
-            count += 1
-
-        else:
-            print("End of the CSV file, simulation ended.")
-            simulation_app.close()
-
+        sim_time += sim_dt
+    
 
     
 
-def main():
-    """Main function."""
 
+def live_csv_reader(file_path, start_row=0, sleep_time=0.1, timeout=10.0):
+    last_row_read = start_row
+    waited_time = 0.0
+
+    while True:
+        try:
+            df = pd.read_csv(file_path)
+        except pd.errors.EmptyDataError:
+            df = pd.DataFrame()
+
+        total_rows = len(df)
+
+        if total_rows > last_row_read:
+            waited_time = 0.0
+            new_rows = df.iloc[last_row_read:total_rows]
+            LiftoffToIsaacCoordinates(new_rows)
+            for _, row in new_rows.iterrows():
+                yield row
+            last_row_read = total_rows
+        else:
+            time.sleep(sleep_time)
+            waited_time += sleep_time
+            if waited_time >= timeout:
+                print(f"[WARNING] No data received for {timeout} seconds. Ending stream.")
+                raise StopIteration  
+
+    
+
+def main(args_cli):
+    """Main function."""
+    
     # Initialize the simulation context
     sim_cfg = sim_utils.SimulationCfg(dt=1/sampling_frequency, device=args_cli.device)
     sim = sim_utils.SimulationContext(sim_cfg)
     # Set main camera
-    sim.set_camera_view([50, 50, 50], [-0.5, 0.0, 0.5])
+    sim.set_camera_view([50, 50, 50], [-10, 0.0, 10])
 
 
     # Design scene by adding assets to it
@@ -211,13 +240,15 @@ def main():
     sim.reset()
     # Now we are ready!
     print("[INFO]: Setup complete...")
-
-    run_simulator(sim, scene_entities)
+    csv_path = args_cli.input_file
+    run_simulator(sim, scene_entities, csv_path)
+    simulation_app.close()
+    exit(0)
 
 
 if __name__ == "__main__":
     # run the main function
-    main()
+    main(args_cli)
 
     simulation_app.close()
     
