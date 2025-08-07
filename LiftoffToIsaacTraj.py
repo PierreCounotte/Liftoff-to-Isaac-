@@ -26,9 +26,8 @@ import isaacsim.core.utils.prims as prim_utils
 
 import isaaclab.sim as sim_utils
 import isaaclab.utils.math as math_utils
-from isaaclab.assets import RigidObject, RigidObjectCfg
+from isaaclab.assets import RigidObject, RigidObjectCfg, Articulation, ArticulationCfg
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
-from isaaclab.assets import Articulation, ArticulationCfg
 
 sampling_frequency = 100 # Hz
 
@@ -38,13 +37,14 @@ def design_scene():
     # Ground-plane
     cfg_ground = sim_utils.GroundPlaneCfg()
     cfg_ground.func("/World/defaultGroundPlane", cfg_ground)
-
     # spawn distant light
-    cfg_light_distant = sim_utils.DistantLightCfg(
+    cfg_light_dome = sim_utils.DomeLightCfg(
         intensity=3000.0,
-        color=(0.75, 0.75, 0.75),
+        color=(0.75, 0.75, 0.75),  
     )
-    cfg_light_distant.func("/World/lightDistant", cfg_light_distant, translation=(1, 0, 10))
+    cfg_light_dome.func("/World/lightDome", cfg_light_dome, translation=(1, 0, 10))
+
+    
 
     # create a new xform prim for all objects to be spawned under
     prim_utils.create_prim("/World/Objects", "Xform")
@@ -57,27 +57,27 @@ def design_scene():
             rigid_props=sim_utils.RigidBodyPropertiesCfg(disable_gravity=True),
         ),
         init_state=ArticulationCfg.InitialStateCfg(),
-        actuators={},  # <--- ajoute cette ligne pour éviter l'erreur
+        actuators={},  
     )
 
-    cube_cfg = RigidObjectCfg(
+    """cube_cfg = RigidObjectCfg(
         prim_path="/World/Objects/GhostCube",
-        spawn=sim_utils.CuboidCfg(  # Cube généré à la volée
-            size=(2, 2, 2),  # Ajuste selon ton drone
+        spawn=sim_utils.CuboidCfg(  
+            size=(0.1, 0.1, 0.1),  
             rigid_props=sim_utils.RigidBodyPropertiesCfg(disable_gravity=True),
             mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
             collision_props=sim_utils.CollisionPropertiesCfg(),
-            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.2, 0.8, 1.0), metallic=0.2, opacity=1.0),
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.8, 0.0), metallic=0.2, roughness=0.9, opacity=0.0),
         ),
         init_state=RigidObjectCfg.InitialStateCfg()
-    )
+    )"""
 
 
     drone_object = Articulation(cfg=drone_cfg)
-    cube_object = RigidObject(cfg=cube_cfg)
+    #cube_object = RigidObject(cfg=cube_cfg)
 
     # return the scene information
-    scene_entities = {"cube": cube_object, "drone": drone_object}
+    scene_entities = {"drone": drone_object}
     return scene_entities
 
 
@@ -104,25 +104,26 @@ def LiftoffToIsaacCoordinates(df):
     r_unity = R.from_quat(quat_unity)
 
     P = np.array([
-        [1, 0, 0],
         [0, 0, 1],
+        [-1, 0, 0],
         [0, 1, 0]
     ])
 
-    # Appliquer ce changement à toutes les quaternions
-    # Soit R la rotation dans l’ancien repère.
-    # Dans le nouveau repère, la rotation est : R' = P⁻¹ * R * P = P.T * R * P
+    
     rot_mats = r_unity.as_matrix()            # (N, 3, 3)
-    rot_mats_permuted = P.T @ rot_mats @ P    # changement de base
+    rot_mats_permuted = P.T @ rot_mats @ P    
     r_permuted = R.from_matrix(rot_mats_permuted)
 
-    # Étape 4 : Appliquer rotation de +90° autour du **nouvel axe Z**
-    r_z_90 = R.from_euler('z', 90, degrees=True)   # dans le nouveau repère
-    r_adjusted = r_z_90 * r_permuted
+    r_z_180 = R.from_euler('y', 180, degrees=True)   
+    r_adjusted = r_z_180 * r_permuted
+
+    
+    #r_z_90 = R.from_euler('y', 90, degrees=True)   
+    #r_adjusted = r_z_90 * r_permuted
 
 
 
-    # Étape 5 : Mise à jour dans le DataFrame (x, y, z, w)
+    
     quat_adjusted = r_adjusted.as_quat()  # shape = (N, 4)
     df.loc[:, 'quaternion_x'] = quat_adjusted[:, 0]
     df.loc[:, 'quaternion_y'] = quat_adjusted[:, 1]
@@ -133,7 +134,7 @@ def LiftoffToIsaacCoordinates(df):
 
 
 def run_simulator(sim: sim_utils.SimulationContext, entities: dict[str, RigidObject], csv_path: str):
-    cube_object, drone_object = entities["cube"], entities["drone"]
+    drone_object = entities["drone"]
     sim_dt = sim.get_physics_dt()
 
     if not os.path.exists(csv_path):
@@ -151,7 +152,7 @@ def run_simulator(sim: sim_utils.SimulationContext, entities: dict[str, RigidObj
             print("[INFO] Data flux end.")
             return
 
-        # Lecture et transformation des données
+
         x_pos = row['position_x']-950
         y_pos = row['position_y']+1000
         z_pos = row['position_z']
@@ -160,32 +161,44 @@ def run_simulator(sim: sim_utils.SimulationContext, entities: dict[str, RigidObj
         qz = row['quaternion_z']
         qw = row['quaternion_w']
 
-        root_state = cube_object.data.default_root_state.clone()
-        root_state[:, :3] = torch.tensor([x_pos, y_pos, z_pos], device=root_state.device)
+        root_state = drone_object.data.default_root_state.clone()
+        root_state[:, :3] = torch.tensor([x_pos/5, y_pos/5, z_pos/5], device=root_state.device)
         root_state[:, 3:7] = torch.tensor([qx, qy, qz, qw], device=root_state.device)
 
-        # Mise à jour du drone et du cube
-        cube_object.write_root_pose_to_sim(root_state[:, :7])
-        cube_object.write_root_velocity_to_sim(root_state[:, 7:])
         drone_object.write_root_pose_to_sim(root_state[:, :7])
         drone_object.write_root_velocity_to_sim(root_state[:, 7:])
 
-        cube_object.reset()
         drone_object.reset()
-        cube_object.write_data_to_sim()
         drone_object.write_data_to_sim()
         sim.step()
 
-        cube_object.update(sim_dt)
         drone_object.update(sim_dt)
 
+                # --- Camera follow logic ---
+        # Récupère position et orientation actuelles du drone
+        drone_pose = drone_object.data.root_state_w.clone() 
+        drone_pose_np = drone_pose.cpu().numpy()     # shape: (1, 13)
+        drone_pos = drone_pose_np[0, :3]              # (x, y, z)
+        drone_rot = drone_pose_np[0, 3:7]   
+
+
+        # Position relative de la caméra (ex: 2m derrière, 1m au-dessus)
+        offset_local = np.array([-0.75, 0.0, 0.75])  # dans le repère du drone
+
+
+        camera_position = drone_pos + offset_local #+ offset_world
+        camera_target = drone_pos
+
+        sim.set_camera_view(camera_position.tolist(), camera_target.tolist())
+
+
         if count % 50 == 0:
-            print(f"Timestamp : {sim_time:.2f} s, Root position (in world): {cube_object.data.root_pos_w}")
+            print(f"Timestamp : {sim_time:.2f} s, Root position (in world): {drone_object.data.root_pos_w}")
             
         if count % 1000 == 0 and count != 0:
             print(f"[INFO] --- Resetting sim_time at count = {count} ---")
             sim_time = 0.0
-            print(f"Timestamp : {sim_time:.2f} s, Root position (in world): {cube_object.data.root_pos_w}")
+            print(f"Timestamp : {sim_time:.2f} s, Root position (in world): {drone_object.data.root_pos_w}")
         count += 1
 
         sim_time += sim_dt
@@ -230,7 +243,7 @@ def main(args_cli):
     sim_cfg = sim_utils.SimulationCfg(dt=1/sampling_frequency, device=args_cli.device)
     sim = sim_utils.SimulationContext(sim_cfg)
     # Set main camera
-    sim.set_camera_view([50, 50, 50], [-10, 0.0, 10])
+    sim.set_camera_view([-2, 0, 4], [3, 0.0, 0.0])
 
 
     # Design scene by adding assets to it
