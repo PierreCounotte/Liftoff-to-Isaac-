@@ -24,9 +24,9 @@ trajectory_df = pd.DataFrame(columns=
 
 def toggle_recording_keypress(output_path):
     global recording, terminate, filename
-    print("Press 'enter' to start / end recording.")
+    print("Press 'a' to start / end recording.")
     while True:
-        keyboard.wait('enter')
+        keyboard.wait('a')
         with lock:
             recording = not recording
             if recording:

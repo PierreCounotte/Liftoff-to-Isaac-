@@ -1,0 +1,220 @@
+<?xml version="1.0"?>
+<robot name="Vapor_X5" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Corps central -->
+  <link name="base_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.6"/> <!-- kg -->
+      <inertia ixx="0.002" ixy="0" ixz="0" iyy="0.002" iyz="0" izz="0.004"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://my_drone/meshes/body.stl" scale="1 1 1"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.2 0.2 0.05"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- ==== BRAS & ROTORS ==== -->
+  <!-- Bras avant gauche -->
+  <link name="arm_fl">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.05"/>
+      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <cylinder radius="0.01" length="0.15"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.01" length="0.15"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="joint_arm_fl" type="fixed">
+    <parent link="base_link"/>
+    <child link="arm_fl"/>
+    <origin xyz="0.1 0.1 0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="rotor_fl">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.01"/>
+      <inertia ixx="0.00001" ixy="0" ixz="0" iyy="0.00001" iyz="0" izz="0.00002"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://my_drone/meshes/propeller.stl" scale="1 1 1"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.05" length="0.005"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="joint_rotor_fl" type="continuous">
+    <parent link="arm_fl"/>
+    <child link="rotor_fl"/>
+    <origin xyz="0.075 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <!-- Bras avant droit -->
+  <link name="arm_fr">
+    <inertial>
+      <mass value="0.05"/>
+      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <cylinder radius="0.01" length="0.15"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.01" length="0.15"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="joint_arm_fr" type="fixed">
+    <parent link="base_link"/>
+    <child link="arm_fr"/>
+    <origin xyz="0.1 -0.1 0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="rotor_fr">
+    <inertial>
+      <mass value="0.01"/>
+      <inertia ixx="0.00001" ixy="0" ixz="0" iyy="0.00001" iyz="0" izz="0.00002"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://my_drone/meshes/propeller.stl" scale="1 1 1"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.05" length="0.005"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="joint_rotor_fr" type="continuous">
+    <parent link="arm_fr"/>
+    <child link="rotor_fr"/>
+    <origin xyz="0.075 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <!-- Bras arrière gauche -->
+  <link name="arm_bl">
+    <inertial>
+      <mass value="0.05"/>
+      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <cylinder radius="0.01" length="0.15"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.01" length="0.15"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="joint_arm_bl" type="fixed">
+    <parent link="base_link"/>
+    <child link="arm_bl"/>
+    <origin xyz="-0.1 0.1 0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="rotor_bl">
+    <inertial>
+      <mass value="0.01"/>
+      <inertia ixx="0.00001" ixy="0" ixz="0" iyy="0.00001" iyz="0" izz="0.00002"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://my_drone/meshes/propeller.stl" scale="1 1 1"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.05" length="0.005"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="joint_rotor_bl" type="continuous">
+    <parent link="arm_bl"/>
+    <child link="rotor_bl"/>
+    <origin xyz="-0.075 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <!-- Bras arrière droit -->
+  <link name="arm_br">
+    <inertial>
+      <mass value="0.05"/>
+      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <cylinder radius="0.01" length="0.15"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.01" length="0.15"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="joint_arm_br" type="fixed">
+    <parent link="base_link"/>
+    <child link="arm_br"/>
+    <origin xyz="-0.1 -0.1 0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="rotor_br">
+    <inertial>
+      <mass value="0.01"/>
+      <inertia ixx="0.00001" ixy="0" ixz="0" iyy="0.00001" iyz="0" izz="0.00002"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://my_drone/meshes/propeller.stl" scale="1 1 1"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.05" length="0.005"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="joint_rotor_br" type="continuous">
+    <parent link="arm_br"/>
+    <child link="rotor_br"/>
+    <origin xyz="-0.075 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+</robot>

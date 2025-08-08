@@ -28,6 +28,7 @@ import isaaclab.sim as sim_utils
 import isaaclab.utils.math as math_utils
 from isaaclab.assets import RigidObject, RigidObjectCfg, Articulation, ArticulationCfg
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
+from pxr import Usd
 
 sampling_frequency = 100 # Hz
 
@@ -38,11 +39,11 @@ def design_scene():
     cfg_ground = sim_utils.GroundPlaneCfg()
     cfg_ground.func("/World/defaultGroundPlane", cfg_ground)
     # spawn distant light
-    cfg_light_dome = sim_utils.DomeLightCfg(
+    cfg_light_distant = sim_utils.DistantLightCfg(
         intensity=3000.0,
         color=(0.75, 0.75, 0.75),  
     )
-    cfg_light_dome.func("/World/lightDome", cfg_light_dome, translation=(1, 0, 10))
+    cfg_light_distant.func("/World/lightDistant", cfg_light_distant, translation=(1, 0, 10))
 
     
 
@@ -54,6 +55,7 @@ def design_scene():
         prim_path="/World/Objects/Drone",
         spawn=sim_utils.UsdFileCfg(
             usd_path=f"{ISAAC_NUCLEUS_DIR}/Robots/Crazyflie/cf2x.usd",
+            #usd_path = f"fpv-dron-nonstop/source/FPV_NonStop_Bake/FPV_NonStop_Bake.usd",
             rigid_props=sim_utils.RigidBodyPropertiesCfg(disable_gravity=True),
         ),
         init_state=ArticulationCfg.InitialStateCfg(),
@@ -114,17 +116,17 @@ def LiftoffToIsaacCoordinates(df):
     rot_mats_permuted = P.T @ rot_mats @ P    
     r_permuted = R.from_matrix(rot_mats_permuted)
 
-    r_z_180 = R.from_euler('y', 180, degrees=True)   
-    r_adjusted = r_z_180 * r_permuted
+    #r_z_180 = R.from_euler('y', 180, degrees=True)   
+    #r_adjusted = r_z_180 * r_permuted
 
     
-    #r_z_90 = R.from_euler('y', 90, degrees=True)   
+    #r_z_90 = R.from_euler('x', -90, degrees=True)   
     #r_adjusted = r_z_90 * r_permuted
 
 
 
     
-    quat_adjusted = r_adjusted.as_quat()  # shape = (N, 4)
+    quat_adjusted = r_permuted.as_quat()  # shape = (N, 4)
     df.loc[:, 'quaternion_x'] = quat_adjusted[:, 0]
     df.loc[:, 'quaternion_y'] = quat_adjusted[:, 1]
     df.loc[:, 'quaternion_z'] = quat_adjusted[:, 2]
@@ -145,6 +147,7 @@ def run_simulator(sim: sim_utils.SimulationContext, entities: dict[str, RigidObj
     sim_time = 0.0
     count = 0
 
+
     while simulation_app.is_running():
         try:
             row = next(row_stream)
@@ -153,8 +156,8 @@ def run_simulator(sim: sim_utils.SimulationContext, entities: dict[str, RigidObj
             return
 
 
-        x_pos = row['position_x']-950
-        y_pos = row['position_y']+1000
+        x_pos = row['position_x']-1000
+        y_pos = row['position_y']+1070
         z_pos = row['position_z']
         qx = row['quaternion_x']
         qy = row['quaternion_y']
@@ -162,7 +165,7 @@ def run_simulator(sim: sim_utils.SimulationContext, entities: dict[str, RigidObj
         qw = row['quaternion_w']
 
         root_state = drone_object.data.default_root_state.clone()
-        root_state[:, :3] = torch.tensor([x_pos/5, y_pos/5, z_pos/5], device=root_state.device)
+        root_state[:, :3] = torch.tensor([x_pos/2, y_pos/2, z_pos/2], device=root_state.device)
         root_state[:, 3:7] = torch.tensor([qx, qy, qz, qw], device=root_state.device)
 
         drone_object.write_root_pose_to_sim(root_state[:, :7])
@@ -183,7 +186,7 @@ def run_simulator(sim: sim_utils.SimulationContext, entities: dict[str, RigidObj
 
 
         # Position relative de la caméra (ex: 2m derrière, 1m au-dessus)
-        offset_local = np.array([-0.75, 0.0, 0.75])  # dans le repère du drone
+        offset_local = np.array([-1.5, 0.0, 1.5])  # dans le repère du drone
 
 
         camera_position = drone_pos + offset_local #+ offset_world
@@ -207,7 +210,7 @@ def run_simulator(sim: sim_utils.SimulationContext, entities: dict[str, RigidObj
     
 
 
-def live_csv_reader(file_path, start_row=0, sleep_time=0.1, timeout=10.0):
+def live_csv_reader(file_path, start_row=0, sleep_time=0.1, timeout=30.0):
     last_row_read = start_row
     waited_time = 0.0
     print(f"[INFO] Starting to read from {file_path}...")
