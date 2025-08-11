@@ -1,0 +1,18 @@
+# Ignorer tous les fichiers temporaires
+*.log
+*.tmp
+*.csv
+*.txt
+
+# Ignorer les fichiers compilés
+*.o
+*.exe
+*.pyc
+__pycache__/
+
+# Ignorer un dossier spécifique
+build/
+dist/
+
+# Ignorer un fichier de configuration local
+config.local.json
