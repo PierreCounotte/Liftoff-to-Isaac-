@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<robot name="Vapor_X5">
+
+  <!-- Corps central -->
+  <link name="base_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.409"/> <!-- kg To modify -->
+      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0002"/> <!-- kg.m^2 To modify -->
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/Drone_mesh.dae" scale="0.3 0.3 0.3"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/Drone_mesh.dae" scale="0.3 0.3 0.3"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Bras articulé -->
+  <link name="arm_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.1"/>
+      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.0 0.0 0.0"/>
+      </geometry>
+      <material name="red"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.0 0.0 0.0"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Joint rotatif entre base_link et arm_link -->
+  <joint name="joint_arm" type="revolute">
+    <parent link="base_link"/>
+    <child link="arm_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/> <!-- axe de rotation autour de Z -->
+    <limit lower="-1.57" upper="1.57" effort="0.5" velocity="1.0"/>
+  </joint>
+  
+</robot>

@@ -30,6 +30,7 @@ from isaaclab.assets import RigidObject, RigidObjectCfg, Articulation, Articulat
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from pxr import Usd
 
+
 sampling_frequency = 100 # Hz
 
 
@@ -49,34 +50,36 @@ def design_scene():
 
     # create a new xform prim for all objects to be spawned under
     prim_utils.create_prim("/World/Objects", "Xform")
+
+    """drone_cfg = RigidObjectCfg(
+        prim_path="/World/Objects/Vapor_X5",
+        spawn=sim_utils.UsdFileCfg(
+            #usd_path=f"{ISAAC_NUCLEUS_DIR}/Robots/Crazyflie/cf2x.usd",
+            usd_path = f"C:/Users/Administrateur/Documents/DroneProject/Liftoff-to-Isaac-/Vapor_X5/my_drone/my_drone.usd",
+            #rigid_props=sim_utils.RigidBodyPropertiesCfg(disable_gravity=True),
+        ),
+        init_state=RigidObjectCfg.InitialStateCfg()
+    )"""
+
     
 
+
     drone_cfg = ArticulationCfg(
-        prim_path="/World/Objects/Drone",
+        prim_path="/World/Objects/Vapor_X5",
         spawn=sim_utils.UsdFileCfg(
-            usd_path=f"{ISAAC_NUCLEUS_DIR}/Robots/Crazyflie/cf2x.usd",
-            #usd_path = f"fpv-dron-nonstop/source/FPV_NonStop_Bake/FPV_NonStop_Bake.usd",
-            rigid_props=sim_utils.RigidBodyPropertiesCfg(disable_gravity=True),
+            #usd_path=f"{ISAAC_NUCLEUS_DIR}/Robots/Crazyflie/cf2x.usd",
+            usd_path = f"C:/Users/Administrateur/Documents/DroneProject/Liftoff-to-Isaac-/Vapor_X5/my_drone/my_drone.usd",
+            #rigid_props=sim_utils.RigidBodyPropertiesCfg(disable_gravity=True),
         ),
         init_state=ArticulationCfg.InitialStateCfg(),
         actuators={},  
     )
 
-    """cube_cfg = RigidObjectCfg(
-        prim_path="/World/Objects/GhostCube",
-        spawn=sim_utils.CuboidCfg(  
-            size=(0.1, 0.1, 0.1),  
-            rigid_props=sim_utils.RigidBodyPropertiesCfg(disable_gravity=True),
-            mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
-            collision_props=sim_utils.CollisionPropertiesCfg(),
-            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.8, 0.0), metallic=0.2, roughness=0.9, opacity=0.0),
-        ),
-        init_state=RigidObjectCfg.InitialStateCfg()
-    )"""
+    
 
 
     drone_object = Articulation(cfg=drone_cfg)
-    #cube_object = RigidObject(cfg=cube_cfg)
+    #drone_object = RigidObject(cfg=drone_cfg)
 
     # return the scene information
     scene_entities = {"drone": drone_object}
@@ -116,8 +119,8 @@ def LiftoffToIsaacCoordinates(df):
     rot_mats_permuted = P.T @ rot_mats @ P    
     r_permuted = R.from_matrix(rot_mats_permuted)
 
-    #r_z_180 = R.from_euler('y', 180, degrees=True)   
-    #r_adjusted = r_z_180 * r_permuted
+    r_z_180 = R.from_euler('x', 180, degrees=True)   
+    r_adjusted = r_z_180 * r_permuted
 
     
     #r_z_90 = R.from_euler('x', -90, degrees=True)   
@@ -126,7 +129,7 @@ def LiftoffToIsaacCoordinates(df):
 
 
     
-    quat_adjusted = r_permuted.as_quat()  # shape = (N, 4)
+    quat_adjusted = r_adjusted.as_quat()  # shape = (N, 4)
     df.loc[:, 'quaternion_x'] = quat_adjusted[:, 0]
     df.loc[:, 'quaternion_y'] = quat_adjusted[:, 1]
     df.loc[:, 'quaternion_z'] = quat_adjusted[:, 2]
@@ -165,7 +168,7 @@ def run_simulator(sim: sim_utils.SimulationContext, entities: dict[str, RigidObj
         qw = row['quaternion_w']
 
         root_state = drone_object.data.default_root_state.clone()
-        root_state[:, :3] = torch.tensor([x_pos/2, y_pos/2, z_pos/2], device=root_state.device)
+        root_state[:, :3] = torch.tensor([x_pos, y_pos, z_pos], device=root_state.device)
         root_state[:, 3:7] = torch.tensor([qx, qy, qz, qw], device=root_state.device)
 
         drone_object.write_root_pose_to_sim(root_state[:, :7])
