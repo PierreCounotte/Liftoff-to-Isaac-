@@ -3,6 +3,7 @@
 *.tmp
 *.csv
 *.txt
+*.zip
 
 # Ignorer les fichiers compilés
 *.o
