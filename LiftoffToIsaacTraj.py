@@ -68,7 +68,7 @@ def design_scene():
         prim_path="/World/Objects/Vapor_X5",
         spawn=sim_utils.UsdFileCfg(
             #usd_path=f"{ISAAC_NUCLEUS_DIR}/Robots/Crazyflie/cf2x.usd",
-            usd_path = f"C:/Users/Administrateur/Documents/DroneProject/Liftoff-to-Isaac-/Vapor_X5/my_drone/my_drone.usd",
+            usd_path = f"C:/Users/Administrateur/Documents/DroneProject/Liftoff-to-Isaac-/Vapor_X5_along_x/my_drone/my_drone.usd",
             #rigid_props=sim_utils.RigidBodyPropertiesCfg(disable_gravity=True),
         ),
         init_state=ArticulationCfg.InitialStateCfg(),
@@ -114,26 +114,29 @@ def LiftoffToIsaacCoordinates(df):
         [0, 1, 0]
     ])
 
+
+    rot_mats = r_unity.as_matrix()
+    rot_mats_converted = P @ rot_mats @ P.T
+
+    angles = R.from_matrix(rot_mats_converted).as_euler('xyz', degrees=False)
+
+    # Swap roll et yaw
+    angles[:, [0, 2]] = angles[:, [2, 0]]
+    angles[:, 0] *= -1  # Roll
+    angles[:, 2] *= -1  # Yaw
     
-    rot_mats = r_unity.as_matrix()            # (N, 3, 3)
-    rot_mats_permuted = P.T @ rot_mats @ P    
-    r_permuted = R.from_matrix(rot_mats_permuted)
 
-    r_z_180 = R.from_euler('x', 180, degrees=True)   
-    r_adjusted = r_z_180 * r_permuted
+    r_converted = R.from_euler('xyz', angles, degrees=False)
 
-    
-    #r_z_90 = R.from_euler('x', -90, degrees=True)   
-    #r_adjusted = r_z_90 * r_permuted
+    r_z_180 = R.from_euler('x', -180, degrees=True)   
+    r_final = r_z_180 * r_converted
 
 
-
-    
-    quat_adjusted = r_adjusted.as_quat()  # shape = (N, 4)
-    df.loc[:, 'quaternion_x'] = quat_adjusted[:, 0]
-    df.loc[:, 'quaternion_y'] = quat_adjusted[:, 1]
-    df.loc[:, 'quaternion_z'] = quat_adjusted[:, 2]
-    df.loc[:, 'quaternion_w'] = quat_adjusted[:, 3]
+    quat_converted = r_final.as_quat()
+    df['quaternion_x'] = quat_converted[:, 0]
+    df['quaternion_y'] = quat_converted[:, 1]
+    df['quaternion_z'] = quat_converted[:, 2]
+    df['quaternion_w'] = quat_converted[:, 3]
 
 
 
@@ -180,19 +183,19 @@ def run_simulator(sim: sim_utils.SimulationContext, entities: dict[str, RigidObj
 
         drone_object.update(sim_dt)
 
-                # --- Camera follow logic ---
-        # Récupère position et orientation actuelles du drone
+                
+        
         drone_pose = drone_object.data.root_state_w.clone() 
         drone_pose_np = drone_pose.cpu().numpy()     # shape: (1, 13)
         drone_pos = drone_pose_np[0, :3]              # (x, y, z)
         drone_rot = drone_pose_np[0, 3:7]   
 
 
-        # Position relative de la caméra (ex: 2m derrière, 1m au-dessus)
-        offset_local = np.array([-1.5, 0.0, 1.5])  # dans le repère du drone
+        
+        offset_local = np.array([-1.5, 0.0, 1.5])  
 
 
-        camera_position = drone_pos + offset_local #+ offset_world
+        camera_position = drone_pos + offset_local 
         camera_target = drone_pos
 
         sim.set_camera_view(camera_position.tolist(), camera_target.tolist())

@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+<robot name="Vapor_X5">
+
+  
+  <link name="base_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.631"/> <!-- [kg] (frame  Vapor-X5 O4 PRO: 409 g, battery 6S LiPo1300mAh – 1800mAh: 222 g) -->
+      <inertia ixx="0.00233681" ixy="0" ixz="0" iyy="0.00240461" iyz="0" izz="0.003746"/> <!-- [kg.m^2] (Frame inertia (0.23x0.23x0.05 [m]): Ixx = Iyy = 0.001888,
+       Izz = 0.003606 [kg.m^2], battery inertia: (0.075x0.044x0.034 [m]): Ixx = 0.0000572, Iyy = 0.000125, Izz = 0.000140 [kg.m^2],
+        distance from the drone's GC : d = 0.042 [m], Total inertia: I_tot = I_drone + I_battery + m_battery * d^2) -->
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/Drone_mesh.dae" scale="0.3 0.3 0.3"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/Drone_mesh.dae" scale="0.3 0.3 0.3"/>
+      </geometry>
+    </collision>
+  </link>
+
+  
+  <link name="arm_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.0"/>
+      <inertia ixx="0.0000" ixy="0" ixz="0" iyy="0.0000" iyz="0" izz="0.0000"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.0 0.0 0.0"/>
+      </geometry>
+      <material name="red"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.0 0.0 0.0"/>
+      </geometry>
+    </collision>
+  </link>
+
+  
+  <joint name="joint_arm" type="revolute">
+    <parent link="base_link"/>
+    <child link="arm_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/> 
+    <limit lower="-1.57" upper="1.57" effort="0.5" velocity="1.0"/>
+  </joint>
+  
+</robot>
