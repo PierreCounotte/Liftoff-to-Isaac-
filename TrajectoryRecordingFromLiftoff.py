@@ -1,3 +1,5 @@
+""" This script listens for UDP packets from the Liftoff simulator and records drone telemetry data into a CSV file."""
+
 import socket
 import struct
 import threading
@@ -23,6 +25,17 @@ columns = [
 ]
 
 def toggle_recording_keypress(output_path):
+    """
+    Toggles recording state on keypress ('a').
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    None
+    """
     global recording, terminate, filename
     print("Press 'a' to start / end recording.")
     while True:
@@ -38,6 +51,20 @@ def toggle_recording_keypress(output_path):
                 break  
 
 def listen_trajectory(port, drone_id):
+    """
+    Listens for UDP packets on the specified port and records trajectory data into a CSV file.
+
+    Parameters
+    ----------
+    port : int
+        The port to listen for UDP packets.
+    drone_id : str
+        The ID of the drone for which telemetry data is being recorded.
+    
+    Returns
+    -------
+    None
+    """
     global recording, terminate, filename
     csv_file = None
     csv_writer = None
@@ -54,14 +81,12 @@ def listen_trajectory(port, drone_id):
                 continue
 
             if not recording:
-                # Si l'enregistrement est arrêté, fermer le fichier si ouvert
                 if csv_file:
                     csv_file.close()
                     csv_file = None
                     csv_writer = None
                 continue
 
-            # Si on commence à enregistrer et que le fichier n'est pas ouvert, l'ouvrir
             if recording and csv_file is None:
                 file_exists = os.path.exists(filename)
                 csv_file = open(filename, mode='a', newline='')
