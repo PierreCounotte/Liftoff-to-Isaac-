@@ -71,7 +71,7 @@ def design_scene():
     drone_cfg = ArticulationCfg(
         prim_path="/World/Objects/Vapor_X5",
         spawn=sim_utils.UsdFileCfg(
-            usd_path = f"C:/Users/Administrateur/Documents/DroneProject/Liftoff-to-Isaac-/Vapor_X5_along_x/my_drone/my_drone.usd",
+            usd_path = f"C:/Users/Administrateur/Documents/DroneProject/Liftoff-to-Isaac-/Custom_drone/Custom_drone/Custom_drone.usd",
         ),
         init_state=ArticulationCfg.InitialStateCfg(),
         actuators={},  
@@ -194,6 +194,9 @@ def run_simulator_from_csv(sim: sim_utils.SimulationContext, entities: dict[str,
         root_state[:, 3:7] = torch.tensor([qx, qy, qz, qw], device=root_state.device)
         drone_object.write_root_pose_to_sim(root_state[:, :7])
         drone_object.write_root_velocity_to_sim(root_state[:, 7:])
+        # After updating root pose and velocities
+        update_propellers_rotation(drone_object, row, sim_dt)
+
         drone_object.reset()
         drone_object.write_data_to_sim()
 
@@ -363,6 +366,10 @@ def run_simulator_from_udp(sim: sim_utils.SimulationContext, entities: dict[str,
 
             drone_object.write_root_pose_to_sim(root_state[:, :7])
             drone_object.write_root_velocity_to_sim(root_state[:, 7:])
+
+            # After updating root pose and velocities
+            update_propellers_rotation(drone_object, row, sim_dt)
+
             drone_object.reset()
             drone_object.write_data_to_sim()
 
@@ -459,6 +466,44 @@ def listen_trajectory(port):
 
             except Exception as e:
                 print(f"Parsing error: {e}")
+
+
+
+def update_propellers_rotation(drone_object, row, sim_dt):
+    """Update propeller joints based on RPM values from CSV row."""
+    rpm_to_rad = 2*np.pi/60
+    rad_per_sec = {
+        "propeller_1_joint": row['left_front_rpm'] * rpm_to_rad,
+        "propeller_2_joint": -row['right_front_rpm'] * rpm_to_rad,
+        "propeller_3_joint": -row['left_back_rpm'] * rpm_to_rad,
+        "propeller_4_joint": row['right_back_rpm'] * rpm_to_rad,
+    }
+
+
+
+
+    joint_pos = drone_object.data.joint_pos.clone()
+    joint_vel = drone_object.data.joint_vel.clone()
+
+    print(f"Before: {joint_pos}")
+
+    # Map joint names to indices
+    joint_name_to_index = {name:i for i,name in enumerate(drone_object.data.joint_names)}
+
+    # Apply delta rotation to each propeller
+    for joint_name, omega in rad_per_sec.items():
+        idx = joint_name_to_index[joint_name]
+        delta_theta = omega * sim_dt
+        joint_pos[0, idx] += delta_theta  
+        joint_pos[0, idx] = (joint_pos[0, idx] + np.pi) % (2 * np.pi) - np.pi
+        print(joint_pos[0,idx])
+        #joint_pos += torch.rand_like(joint_pos) + 200 * sim_dt
+
+    print(f"After: {joint_pos}")
+
+    # Write joint state to simulation
+    drone_object.write_joint_state_to_sim(joint_pos, joint_vel)
+
 
     
 
