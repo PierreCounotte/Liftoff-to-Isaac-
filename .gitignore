@@ -4,6 +4,7 @@
 *.csv
 *.txt
 *.zip
+*.dae
 
 # Ignorer les fichiers compilés
 *.o
@@ -17,3 +18,4 @@ dist/
 
 # Ignorer un fichier de configuration local
 config.local.json
+

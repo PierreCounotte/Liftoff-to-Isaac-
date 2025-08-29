@@ -135,14 +135,13 @@ def listen_trajectory(port, drone_id):
             except Exception as e:
                 print(f"Parsing error: {e}")
 
-        # À la fin, fermer le fichier CSV s'il est ouvert
         if csv_file:
             csv_file.close()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run drone telemetry trajectory")
     parser.add_argument("--drone_id", default="1", help="Type of drone : 1 = DJI FPV Drone, 2 = Luma 5, 3 = ...")
-    parser.add_argument("--output_file", default="Liftoff_trajectory.csv", help="Output file name for the trajectory data.")
+    parser.add_argument("--output_file", default="Liftoff_trajectory.csv", help="Output file name for the trajectory data (default is Liftoff_trajectory.csv).")
     args = parser.parse_args()
     port = 9001
 

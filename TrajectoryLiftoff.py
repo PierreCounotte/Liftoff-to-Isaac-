@@ -122,7 +122,7 @@ def split_csv_with_chunks(csv_path, chunk_size=1000, output_path=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run drone telemetry trajectory")
     parser.add_argument("--drone_id", default="1", help="Type of drone : 1 = DJI FPV Drone, 2 = Luma 5, 3 = ...")
-    parser.add_argument("--output_file", default="Liftoff_trajectory.csv", help="Output file name for the trajectory data.")
+    parser.add_argument("--output_file", default="Liftoff_trajectory.csv", help="Output file name for the trajectory data (default is Liftoff_trajectory.csv).")
     parser.add_argument("--chunks", default="0", choices=["0","1"], help="1 for a chunked csv")
     args = parser.parse_args()
     port = 9001

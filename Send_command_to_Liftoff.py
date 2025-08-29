@@ -4,7 +4,7 @@ import time
 
 # Paramètres réseau
 UDP_IP = "127.0.0.1"   # Adresse locale
-UDP_PORT = 5000        # Port défini dans Liftoff (à configurer dans les paramètres)
+UDP_PORT = 5000       # Port défini dans Liftoff (à configurer dans les paramètres)
 
 # Crée un socket UDP
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

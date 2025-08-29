@@ -6,7 +6,7 @@ from isaaclab.app import AppLauncher
 
 parser = argparse.ArgumentParser(description="Run drone trajectory in Isaac Lab.")
 AppLauncher.add_app_launcher_args(parser)
-parser.add_argument("--input_file", default="test.csv", help="CSV file containing the trajectory data")
+parser.add_argument("--input_file", default="Liftoff_trajectory.csv", help="CSV file containing the trajectory data (default is Liftoff_trajectory.csv)")
 parser.add_argument("--data_source", choices=["csv", "udp"], help="Source of the trajectory data")
 args_cli = parser.parse_args()
 
