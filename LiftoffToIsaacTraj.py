@@ -31,6 +31,8 @@ from isaaclab.assets import RigidObject, RigidObjectCfg, Articulation, Articulat
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaacsim.core.utils.extensions import get_extension_path_from_name
 from isaacsim.asset.importer.urdf import _urdf
+import omni.kit.commands
+import omni.usd
 from pxr import Usd
 
 """ Global variables for threading """
@@ -70,20 +72,48 @@ def design_scene():
     prim_utils.create_prim("/World/Objects", "Xform")
 
 
+    urdf_path = r"C:/Users/Administrateur/Documents/DroneProject/Liftoff-to-Isaac-/Custom_drone/Custom_drone.urdf"
+
+    # Interface URDF
+    urdf_interface = _urdf.acquire_urdf_interface()
+
+    import_config = _urdf.ImportConfig()
+    import_config.fix_base = False  
+    import_config.make_default_prim = True
+    import_config.self_collision = False
+    import_config.convex_decomp = False
+    import_config.density = 0.0
+
+    # Parsing of the URDF file
+    result, drone_model = omni.kit.commands.execute(
+        "URDFParseFile",
+        urdf_path=urdf_path,
+        import_config=import_config
+    )
+
+    if not result:
+        raise RuntimeError(f"[ERROR] Enable to load {urdf_path}")
+
+    # Import of the URDF file into the scene
+    result, prim_path = omni.kit.commands.execute(
+        "URDFImportRobot",
+        urdf_robot=drone_model,
+        import_config=import_config
+    )
+
+    if not result:
+        raise RuntimeError(f"[ERROR] Enable to load the drone into the scene : {urdf_path}")
 
 
-    
-    """ Drone object"""
     drone_cfg = ArticulationCfg(
-        prim_path="/World/Objects/Vapor_X5",
-        spawn=sim_utils.UsdFileCfg(
-            usd_path = f"C:/Users/Administrateur/Documents/DroneProject/Liftoff-to-Isaac-/Custom_drone/Custom_drone/Custom_drone.usd",
-        ),
+        prim_path=prim_path,
+        spawn=None,  # URDF déjà importé
         init_state=ArticulationCfg.InitialStateCfg(),
-        actuators={},  
+        actuators={},
     )
 
     drone_object = Articulation(cfg=drone_cfg)
+
 
     scene_entities = {"drone": drone_object}
     return scene_entities
