@@ -29,6 +29,8 @@ import isaacsim.core.utils.prims as prim_utils
 import isaaclab.sim as sim_utils
 from isaaclab.assets import RigidObject, RigidObjectCfg, Articulation, ArticulationCfg
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
+from isaacsim.core.utils.extensions import get_extension_path_from_name
+from isaacsim.asset.importer.urdf import _urdf
 from pxr import Usd
 
 """ Global variables for threading """
@@ -67,6 +69,10 @@ def design_scene():
 
     prim_utils.create_prim("/World/Objects", "Xform")
 
+
+
+
+    
     """ Drone object"""
     drone_cfg = ArticulationCfg(
         prim_path="/World/Objects/Vapor_X5",
@@ -479,29 +485,18 @@ def update_propellers_rotation(drone_object, row, sim_dt):
         "propeller_4_joint": row['right_back_rpm'] * rpm_to_rad,
     }
 
-
-
-
     joint_pos = drone_object.data.joint_pos.clone()
     joint_vel = drone_object.data.joint_vel.clone()
 
-    print(f"Before: {joint_pos}")
-
-    # Map joint names to indices
     joint_name_to_index = {name:i for i,name in enumerate(drone_object.data.joint_names)}
 
-    # Apply delta rotation to each propeller
+
     for joint_name, omega in rad_per_sec.items():
         idx = joint_name_to_index[joint_name]
         delta_theta = omega * sim_dt
         joint_pos[0, idx] += delta_theta  
         joint_pos[0, idx] = (joint_pos[0, idx] + np.pi) % (2 * np.pi) - np.pi
-        print(joint_pos[0,idx])
-        #joint_pos += torch.rand_like(joint_pos) + 200 * sim_dt
 
-    print(f"After: {joint_pos}")
-
-    # Write joint state to simulation
     drone_object.write_joint_state_to_sim(joint_pos, joint_vel)
 
 
